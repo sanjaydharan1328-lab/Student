@@ -1,18 +1,20 @@
+
 import React, { useState, useEffect } from "react";
+import "./App.css";
 
 function App() {
     const [students, setStudents] = useState([]);
-    const [student, setStudent] = useState({
-        name: "",
-        rollNo: "",
-        department: "",
-        email: "",
-        age: ""
-    });
+    const [page, setPage] = useState("add");
+    const [name, setName] = useState("");
+    const [department, setDepartment] = useState("");
+    const [year, setYear] = useState("");
+    const [loading, setLoading] = useState(false);
 
-    // Fetch Students
+    const API = "http://localhost:5000/students";
+
+    // Get Students
     const getStudents = async () => {
-        const response = await fetch("http://localhost:5000/students");
+        const response = await fetch(API);
         const data = await response.json();
         setStudents(data);
     };
@@ -21,40 +23,47 @@ function App() {
         getStudents();
     }, []);
 
-    // Handle Input
-    const handleChange = (e) => {
-        setStudent({
-            ...student,
-            [e.target.name]: e.target.value
-        });
-    };
-
     // Add Student
     const addStudent = async (e) => {
         e.preventDefault();
+        setLoading(true);
 
-        await fetch("http://localhost:5000/students", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(student)
-        });
+        try {
+            const response = await fetch(API, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    name,
+                    department,
+                    year: Number(year)
+                })
+            });
 
-        setStudent({
-            name: "",
-            rollNo: "",
-            department: "",
-            email: "",
-            age: ""
-        });
+            if (!response.ok) {
+                throw new Error("Unable to add student");
+            }
 
-        getStudents();
+            alert("Student Added Successfully!");
+
+            setName("");
+            setDepartment("");
+            setYear("");
+
+            await getStudents();
+        } catch (error) {
+            alert(error.message);
+        } finally {
+            setLoading(false);
+        }
     };
 
     // Delete Student
     const deleteStudent = async (id) => {
-        await fetch(`http://localhost:5000/students/${id}`, {
+        if (!window.confirm("Delete this student?")) return;
+
+        await fetch(`${API}/${id}`, {
             method: "DELETE"
         });
 
@@ -62,89 +71,96 @@ function App() {
     };
 
     return (
-        <div>
+        <div className="container">
+
             <h1>Student Management System</h1>
 
-            <form onSubmit={addStudent}>
-                <input
-                    name="name"
-                    placeholder="Student Name"
-                    value={student.name}
-                    onChange={handleChange}
-                    required
-                />
+            <div className="tabs">
+                <button onClick={() => setPage("add")}>
+                    Add Student
+                </button>
 
-                <input
-                    name="rollNo"
-                    placeholder="Roll Number"
-                    value={student.rollNo}
-                    onChange={handleChange}
-                    required
-                />
+                <button onClick={() => {
+                    setPage("view");
+                    getStudents();
+                }}>
+                    View Students
+                </button>
+            </div>
 
-                <input
-                    name="department"
-                    placeholder="Department"
-                    value={student.department}
-                    onChange={handleChange}
-                    required
-                />
+            {page === "add" ? (
+                <div className="form-box">
+                    <h2>Add Student</h2>
 
-                <input
-                    name="email"
-                    type="email"
-                    placeholder="Email"
-                    value={student.email}
-                    onChange={handleChange}
-                    required
-                />
+                    <form onSubmit={addStudent}>
 
-                <input
-                    name="age"
-                    type="number"
-                    placeholder="Age"
-                    value={student.age}
-                    onChange={handleChange}
-                    required
-                />
+                        <label>Student Name</label>
+                        <input
+                            type="text"
+                            placeholder="Enter student name"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            required
+                        />
 
-                <button type="submit">Add Student</button>
-            </form>
+                        <label>Department</label>
+                        <input
+                            type="text"
+                            placeholder="Enter department"
+                            value={department}
+                            onChange={(e) => setDepartment(e.target.value)}
+                            required
+                        />
 
-            <h2>Student Details</h2>
+                        <label>Year</label>
+                        <input
+                            type="number"
+                            placeholder="Enter year (1-4)"
+                            min="1"
+                            max="4"
+                            value={year}
+                            onChange={(e) => setYear(e.target.value)}
+                            required
+                        />
 
-            <table border="1" cellPadding="10">
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Roll No</th>
-                        <th>Department</th>
-                        <th>Email</th>
-                        <th>Age</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
+                        <button type="submit" disabled={loading}>
+                            {loading ? "Adding..." : "Add Student"}
+                        </button>
 
-                <tbody>
-                    {students.map((s) => (
-                        <tr key={s._id}>
-                            <td>{s.name}</td>
-                            <td>{s.rollNo}</td>
-                            <td>{s.department}</td>
-                            <td>{s.email}</td>
-                            <td>{s.age}</td>
-                            <td>
-                                <button onClick={() => deleteStudent(s._id)}>
-                                    Delete
-                                </button>
-                            </td>
-                        </tr>
+                    </form>
+                </div>
+            ) : (
+                <div className="student-list">
+                    <h2>All Students</h2>
+
+                    {students.map((student) => (
+                        <div className="student-card" key={student._id}>
+                            <h3>{student.name}</h3>
+                            <p>
+                                <b>Department:</b> {student.department}
+                            </p>
+                            <p>
+                                <b>Year:</b> {student.year}
+                            </p>
+
+                            <button
+                                className="delete-btn"
+                                onClick={() => deleteStudent(student._id)}
+                            >
+                                Delete
+                            </button>
+                        </div>
                     ))}
-                </tbody>
-            </table>
+
+                    {students.length === 0 && (
+                        <p>No students found.</p>
+                    )}
+                </div>
+            )}
+
         </div>
     );
 }
 
 export default App;
-                      
+
